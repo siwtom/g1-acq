@@ -15,7 +15,7 @@ Google One（iOS）订阅入口的商品 ID 改写与采集工具，适用于 **
 **G1 ACQ：被动采集、三档改写与响应活动诊断**
 
 ```text
-https://cdn.jsdelivr.net/gh/crhywun/g1-acq@v7.5.0/g1-acq-v7.sgmodule
+https://cdn.jsdelivr.net/gh/siwtom/g1-acq@main/g1-acq-v7.sgmodule
 ```
 
 首次安装时在小火箭模块管理中添加上面的地址并启用；从旧版本升级时，将旧 **G1 ACQ** 替换为此地址一次。模块安装入口与内部响应、报告脚本均固定引用 `@v7.5.0`，无需单独添加脚本；安装或升级后重新连接，再重新进入 Google App 的订阅页。升级保留本地历史记录；响应诊断不保证产生新 ID，重复安装也不会促使服务器下发新 SKU。
