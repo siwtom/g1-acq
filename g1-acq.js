@@ -27,6 +27,46 @@
     return;
   }
 
+  var isResponse = typeof $response === "object" && $response !== null;
+  if (!isResponse) {
+    var reqBody = typeof $request === "object" && $request ? $request.body : undefined;
+    if (typeof reqBody === "string") {
+      var changed = false;
+      var updatedReqBody = reqBody;
+      if (updatedReqBody.indexOf("g1.ios.20tb.m.v2") !== -1) {
+        updatedReqBody = updatedReqBody.replace(
+          /(^|[^A-Za-z0-9._@%-])g1\.ios\.20tb\.m\.v2(?=$|[^A-Za-z0-9._-])/g,
+          "$1g1.ai.ultra.1month_eft.acq"
+        );
+        if (updatedReqBody.indexOf("g1.ios.20tb.m.v2") !== -1) {
+          updatedReqBody = updatedReqBody.split("g1.ios.20tb.m.v2").join("g1.ai.ultra.1month_eft.acq");
+        }
+        changed = true;
+      }
+      if (updatedReqBody.indexOf("g1%2Eios%2E20tb%2Em%2Ev2") !== -1) {
+        updatedReqBody = updatedReqBody.split("g1%2Eios%2E20tb%2Em%2Ev2").join("g1.ai.ultra.1month_eft.acq");
+        changed = true;
+      }
+      if (changed) {
+        console.log("[g1-acq] request body updated: g1.ios.20tb.m.v2 -> g1.ai.ultra.1month_eft.acq");
+        $done({ body: updatedReqBody });
+        return;
+      }
+    } else if (reqBody && typeof reqBody === "object") {
+      try {
+        var str = JSON.stringify(reqBody);
+        if (str.indexOf("g1.ios.20tb.m.v2") !== -1) {
+          var updatedObj = JSON.parse(str.split("g1.ios.20tb.m.v2").join("g1.ai.ultra.1month_eft.acq"));
+          console.log("[g1-acq] request body object updated: g1.ios.20tb.m.v2 -> g1.ai.ultra.1month_eft.acq");
+          $done({ body: updatedObj });
+          return;
+        }
+      } catch (e) {}
+    }
+    $done({});
+    return;
+  }
+
   var body = typeof $response === "object" && $response ? $response.body : undefined;
   try {
     collectOriginalSkus(body);

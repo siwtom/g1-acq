@@ -34,9 +34,10 @@ function run(name, options = {}) {
   const context = {
     $request: {
       url: options.url || "https://one.google.com/ai?fixture=1",
-      headers: { Cookie: "cookie-secret", Authorization: "auth-secret" }
+      headers: { Cookie: "cookie-secret", Authorization: "auth-secret" },
+      body: typeof options.requestBody !== "undefined" ? options.requestBody : (options.isRequest ? options.body : undefined)
     },
-    $response: { body: options.body, headers: { "x-private": "response-secret" } },
+    $response: options.isRequest ? undefined : { body: options.body, headers: { "x-private": "response-secret" } },
     $done: payload => calls.push(JSON.parse(JSON.stringify(payload))),
     console: { log: value => logs.push(String(value)) }
   };
@@ -528,7 +529,7 @@ test("the new installer replaces the old entry and all modules share one fixed r
   for (const file of ["g1-acq-v7.sgmodule", "g1-pro-annual-test.sgmodule", "g1-sku-scan.sgmodule"]) {
     const module = fs.readFileSync(path.join(root, file), "utf8");
     const scripts = module.split("\n").filter(line => line.includes("script-path="));
-    assert.equal(scripts.length, 2);
+    assert.equal(scripts.length, file === "g1-sku-scan.sgmodule" ? 2 : 3);
     if (file === "g1-acq-v7.sgmodule") assert.match(module, /^#!name=G1 ACQ$/m);
     for (const script of scripts) {
       const url = script.match(/script-path=([^,\s]+)/)[1];
@@ -548,11 +549,14 @@ test("the new installer replaces the old entry and all modules share one fixed r
     if (file !== "g1-sku-scan.sgmodule") {
       assert.equal(responseLine.match(/script-path=([^,\s]+)/)[1],
         scriptBase + "g1-acq.js");
+      const reqLine = scripts.find(line => line.includes("type=http-request") && line.includes("g1-acq.js"));
+      assert(reqLine);
+      assert.match(reqLine, /requires-body=1/);
     }
-    const requestLine = scripts.find(line => line.includes("type=http-request"));
-    assert.equal(requestLine.match(/script-path=([^,\s]+)/)[1],
+    const reportLine = scripts.find(line => line.includes("g1-sku-report.js"));
+    assert.equal(reportLine.match(/script-path=([^,\s]+)/)[1],
       scriptBase + "g1-sku-report.js");
-    const reportPattern = new RegExp(requestLine.match(/pattern=([^,]+)/)[1]);
+    const reportPattern = new RegExp(reportLine.match(/pattern=([^,]+)/)[1]);
     for (const url of [REPORT, REPORT + "?format=json", REPORT + "/", REPORT + "/?format=json"]) {
       assert(reportPattern.test(url));
     }
@@ -560,4 +564,48 @@ test("the new installer replaces the old entry and all modules share one fixed r
       assert(!reportPattern.test(url));
     }
   }
+});
+
+test("request body with g1.ios.20tb.m.v2 is rewritten to g1.ai.ultra.1month_eft.acq", () => {
+  const targetSku = "g1.ai.ultra.1month_eft.acq";
+  // JSON string payload
+  const jsonBody = JSON.stringify({ item: TWENTY, count: 1 });
+  const res1 = run("g1-acq.js", { isRequest: true, body: jsonBody });
+  assert.equal(res1.payload.body, JSON.stringify({ item: targetSku, count: 1 }));
+
+  // Raw text payload
+  const textBody = "order=" + TWENTY + "&tier=20tb";
+  const res2 = run("g1-acq.js", { isRequest: true, body: textBody });
+  assert.equal(res2.payload.body, "order=" + targetSku + "&tier=20tb");
+
+  // URL-encoded dot notation
+  const urlEncoded = "f.req=%5B%22g1%2Eios%2E20tb%2Em%2Ev2%22%5D";
+  const res3 = run("g1-acq.js", { isRequest: true, body: urlEncoded });
+  assert.equal(res3.payload.body, "f.req=%5B%22" + targetSku + "%22%5D");
+
+  // Object payload
+  const objBody = { sku: TWENTY, active: true };
+  const res4 = run("g1-acq.js", { isRequest: true, requestBody: objBody });
+  assert.deepEqual(res4.payload.body, { sku: targetSku, active: true });
+
+  // Unrelated payload passes through untouched
+  const untouched = JSON.stringify({ item: "g1.ios.2tb.monthly" });
+  const res5 = run("g1-acq.js", { isRequest: true, body: untouched });
+  assert.deepEqual(res5.payload, {});
+
+  // URL outside one.google.com passes through
+  const res6 = run("g1-acq.js", {
+    isRequest: true,
+    url: "https://other.google.com/checkout",
+    body: jsonBody
+  });
+  assert.deepEqual(res6.payload, {});
+
+  // g1-sku-report URL passes through
+  const res7 = run("g1-acq.js", {
+    isRequest: true,
+    url: "https://one.google.com/g1-sku-report",
+    body: jsonBody
+  });
+  assert.deepEqual(res7.payload, {});
 });
