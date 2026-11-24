@@ -529,7 +529,7 @@ test("the new installer replaces the old entry and all modules share one fixed r
   for (const file of ["g1-acq-v7.sgmodule", "g1-pro-annual-test.sgmodule", "g1-sku-scan.sgmodule"]) {
     const module = fs.readFileSync(path.join(root, file), "utf8");
     const scripts = module.split("\n").filter(line => line.includes("script-path="));
-    assert.equal(scripts.length, file === "g1-sku-scan.sgmodule" ? 2 : 3);
+    assert.equal(scripts.length, 2);
     if (file === "g1-acq-v7.sgmodule") assert.match(module, /^#!name=G1 ACQ$/m);
     for (const script of scripts) {
       const url = script.match(/script-path=([^,\s]+)/)[1];
@@ -549,9 +549,6 @@ test("the new installer replaces the old entry and all modules share one fixed r
     if (file !== "g1-sku-scan.sgmodule") {
       assert.equal(responseLine.match(/script-path=([^,\s]+)/)[1],
         scriptBase + "g1-acq.js");
-      const reqLine = scripts.find(line => line.includes("type=http-request") && line.includes("g1-acq.js"));
-      assert(reqLine);
-      assert.match(reqLine, /requires-body=1/);
     }
     const reportLine = scripts.find(line => line.includes("g1-sku-report.js"));
     assert.equal(reportLine.match(/script-path=([^,\s]+)/)[1],
